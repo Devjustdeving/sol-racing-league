@@ -1,8 +1,10 @@
 import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useRef, useState, useCallback } from "react";
 import { GameEngine, formatTime, type PublicState } from "@/game/engine";
 import { getTrackById } from "@/game/track";
 import solanaCoinUrl from "@/assets/solana.png";
+import { useWallet } from "@/lib/wallet-context";
+import { saveGameSession } from "@/lib/supabase";
 
 export const Route = createFileRoute("/race")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -28,10 +30,31 @@ function RacePage() {
   const [controlMode, setControlMode] = useState<ControlMode>("touch");
   const [muted, setMuted] = useState(false);
   const tiltZeroRef = useRef<number | null>(null);
+  const { address } = useWallet();
+  const savedRef = useRef(false);
+
+  // Save game session when race finishes
+  const saveSession = useCallback(async (s: PublicState) => {
+    if (savedRef.current || !address || !s.finished) return;
+    savedRef.current = true;
+    await saveGameSession(
+      address,
+      trackId,
+      s.player.coins,
+      s.player.position,
+      s.player.totalCars,
+      s.player.bestLap ?? null,
+    );
+  }, [address, trackId]);
+
+  useEffect(() => {
+    if (state?.finished) saveSession(state);
+  }, [state?.finished, saveSession, state]);
 
   // Init engine
   useEffect(() => {
     if (!canvasRef.current) return;
+    savedRef.current = false;
     const info = getTrackById(trackId);
     const eng = new GameEngine(info.track);
     engineRef.current = eng;
