@@ -2,7 +2,7 @@ import { createFileRoute, Link, useNavigate } from "@tanstack/react-router";
 import { useEffect, useRef, useState } from "react";
 import { GameEngine, formatTime, type PublicState } from "@/game/engine";
 import { getTrackById } from "@/game/track";
-import solanaCoin from "@/assets/solana.png.asset.json";
+import solanaCoinUrl from "@/assets/solana.png";
 
 export const Route = createFileRoute("/race")({
   validateSearch: (search: Record<string, unknown>) => ({
@@ -167,7 +167,7 @@ function RacePage() {
       {/* Coin counter */}
       {state && (
         <div className="pointer-events-none absolute top-3 right-3 bg-black border-2 border-[#9b59ff] rounded-md px-3 py-2 text-[10px] font-pixel flex items-center gap-2">
-          <img src={solanaCoin.url} alt="" className="w-5 h-5" style={{ imageRendering: "pixelated" }} />
+          <img src={solanaCoinUrl} alt="" className="w-5 h-5" style={{ imageRendering: "pixelated" }} />
           <span className="text-white">COINS</span>
           <span className="text-[#9b59ff] tabular-nums">{state.player.coins}</span>
         </div>
