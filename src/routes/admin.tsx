@@ -39,13 +39,19 @@ function AdminPage() {
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
   const [totalSessions, setTotalSessions] = useState<number | null>(null);
-  const [weekStart] = useState(() => {
+  const [weekOffset, setWeekOffset] = useState(0);
+
+  const getWeekRange = (offset: number) => {
     const now = new Date();
     const day = now.getDay();
-    const diff = now.getDate() - day + (day === 0 ? -6 : 1);
+    const diff = now.getDate() - day + (day === 0 ? -6 : 1) - offset * 7;
     const monday = new Date(now.getFullYear(), now.getMonth(), diff, 0, 0, 0, 0);
-    return monday.toISOString();
-  });
+    const sunday = new Date(monday);
+    sunday.setDate(sunday.getDate() + 7);
+    return { start: monday.toISOString(), end: sunday.toISOString(), label: monday.toLocaleDateString("en-US", { month: "short", day: "numeric" }) + " - " + new Date(sunday.getTime() - 1).toLocaleDateString("en-US", { month: "short", day: "numeric" }) };
+  };
+
+  const weekRange = getWeekRange(weekOffset);
 
   const login = () => {
     if (password === ADMIN_PASSWORD) {
@@ -60,17 +66,16 @@ function AdminPage() {
     if (!supabase) return;
     setLoading(true);
     try {
-      // Check total sessions in DB
       const { count } = await supabase
         .from("game_sessions")
         .select("*", { count: "exact", head: true });
       setTotalSessions(count ?? 0);
 
-      // Fetch this week's sessions
       const { data, error } = await supabase
         .from("game_sessions")
         .select("wallet_address, coins_collected, finish_position, created_at")
-        .gte("created_at", weekStart);
+        .gte("created_at", weekRange.start)
+        .lt("created_at", weekRange.end);
 
       if (error || !data) {
         console.error("Weekly query error:", error);
@@ -101,7 +106,7 @@ function AdminPage() {
       console.error(e);
     }
     setLoading(false);
-  }, [weekStart]);
+  }, [weekRange.start, weekRange.end]);
 
   const fetchAllTime = useCallback(async () => {
     if (!supabase) return;
@@ -169,9 +174,6 @@ function AdminPage() {
     );
   }
 
-  const weekLabel = weekStart
-    ? `Week of ${new Date(weekStart).toLocaleDateString("en-US", { month: "short", day: "numeric" })}`
-    : "This Week";
 
   return (
     <main className="min-h-dvh bg-zinc-950 text-white">
@@ -192,7 +194,7 @@ function AdminPage() {
             onClick={() => setTab("weekly")}
             className={`px-4 py-2 rounded-lg text-sm font-bold ${tab === "weekly" ? "bg-[#9b59ff]" : "bg-white/5"}`}
           >
-            Weekly ({weekLabel})
+            Weekly
           </button>
           <button
             onClick={() => setTab("alltime")}
@@ -206,9 +208,26 @@ function AdminPage() {
           <div className="text-center py-12 opacity-60">Loading...</div>
         ) : tab === "weekly" ? (
           <>
+            {/* Week picker */}
+            <div className="flex items-center justify-between bg-white/5 border border-white/10 rounded-lg px-3 py-2 mb-3">
+              <button
+                onClick={() => setWeekOffset((o) => o + 1)}
+                className="text-sm px-2 py-1 rounded hover:bg-white/10"
+              >
+                ← Prev
+              </button>
+              <div className="text-sm font-bold">{weekRange.label}{weekOffset === 0 ? " (current)" : ""}</div>
+              <button
+                onClick={() => setWeekOffset((o) => Math.max(0, o - 1))}
+                disabled={weekOffset === 0}
+                className="text-sm px-2 py-1 rounded hover:bg-white/10 disabled:opacity-30"
+              >
+                Next →
+              </button>
+            </div>
             {totalSessions !== null && (
-              <div className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 mb-3 text-xs opacity-60">
-                Total game sessions in DB: {totalSessions} | Week filter: since {new Date(weekStart).toLocaleDateString()}
+              <div className="text-[10px] opacity-40 mb-2 text-center">
+                Total sessions in DB: {totalSessions}
               </div>
             )}
             <div className="flex items-center justify-between mb-3">
