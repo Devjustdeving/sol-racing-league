@@ -280,6 +280,13 @@ function RacePage() {
         </div>
       </div>
 
+      {/* Wallet status indicator */}
+      {state && state.raceState === "racing" && (
+        <div className={`pointer-events-none absolute bottom-28 left-1/2 -translate-x-1/2 rounded-full px-3 py-1 text-[9px] font-pixel ${address ? "bg-emerald-500/20 border border-emerald-500/40" : "bg-red-500/20 border border-red-500/40"}`}>
+          {address ? `Wallet: ${address.slice(0, 4)}...${address.slice(-4)} - Earning SRL` : "Wallet not connected - coins won't save"}
+        </div>
+      )}
+
       {/* Top-right controls */}
       <div className="absolute top-3 right-3 hidden">{/* spacer */}</div>
       <div className="absolute top-1/2 -translate-y-1/2 right-3 pointer-events-auto flex flex-col gap-2">
