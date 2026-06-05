@@ -38,35 +38,41 @@ export async function saveGameSession(
 ) {
   if (!supabase) return null;
 
-  const { data: session, error: sessionError } = await supabase
-    .from("game_sessions")
-    .insert({
-      wallet_address: walletAddress,
-      track_id: trackId,
-      coins_collected: coinsCollected,
-      finish_position: finishPosition,
-      total_cars: totalCars,
-      best_lap_ms: bestLapMs,
-    })
-    .select()
-    .single();
+  try {
+    const { error: playerError } = await supabase.rpc("upsert_player_stats", {
+      p_wallet: walletAddress,
+      p_coins: coinsCollected,
+      p_position: finishPosition,
+    });
 
-  if (sessionError) {
-    console.error("Failed to save game session:", sessionError);
+    if (playerError) {
+      console.error("Failed to upsert player:", playerError);
+      return null;
+    }
+
+    const { data: session, error: sessionError } = await supabase
+      .from("game_sessions")
+      .insert({
+        wallet_address: walletAddress,
+        track_id: trackId,
+        coins_collected: coinsCollected,
+        finish_position: finishPosition,
+        total_cars: totalCars,
+        best_lap_ms: bestLapMs,
+      })
+      .select()
+      .single();
+
+    if (sessionError) {
+      console.error("Failed to save game session:", sessionError);
+      return null;
+    }
+
+    return session;
+  } catch (e) {
+    console.error("saveGameSession error:", e);
     return null;
   }
-
-  const { error: playerError } = await supabase.rpc("upsert_player_stats", {
-    p_wallet: walletAddress,
-    p_coins: coinsCollected,
-    p_position: finishPosition,
-  });
-
-  if (playerError) {
-    console.error("Failed to update player stats:", playerError);
-  }
-
-  return session;
 }
 
 export async function getLeaderboard(limit = 50) {

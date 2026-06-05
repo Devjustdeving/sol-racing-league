@@ -19,10 +19,14 @@ function LeaderboardPage() {
   const { address } = useWallet();
 
   useEffect(() => {
-    getLeaderboard(50).then((data) => {
-      setPlayers(data);
-      setLoading(false);
-    });
+    getLeaderboard(50)
+      .then((data) => {
+        setPlayers(data);
+        setLoading(false);
+      })
+      .catch(() => {
+        setLoading(false);
+      });
   }, []);
 
   return (
