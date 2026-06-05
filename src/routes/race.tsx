@@ -32,24 +32,32 @@ function RacePage() {
   const tiltZeroRef = useRef<number | null>(null);
   const { address } = useWallet();
   const savedRef = useRef(false);
+  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error" | "no-wallet">("idle");
 
   // Save game session when race finishes
-  const saveSession = useCallback(async (s: PublicState) => {
-    if (savedRef.current || !address || !s.finished) return;
+  useEffect(() => {
+    if (!state?.finished || savedRef.current) return;
     savedRef.current = true;
-    await saveGameSession(
+
+    if (!address) {
+      setSaveStatus("no-wallet");
+      return;
+    }
+
+    setSaveStatus("saving");
+    saveGameSession(
       address,
       trackId,
-      s.player.coins,
-      s.player.position,
-      s.player.totalCars,
-      s.player.bestLap ?? null,
-    );
-  }, [address, trackId]);
-
-  useEffect(() => {
-    if (state?.finished) saveSession(state);
-  }, [state?.finished, saveSession, state]);
+      state.player.coins,
+      state.player.position,
+      state.player.totalCars,
+      state.player.bestLap ?? null,
+    ).then((result) => {
+      setSaveStatus(result ? "saved" : "error");
+    }).catch(() => {
+      setSaveStatus("error");
+    });
+  }, [state?.finished]);
 
   // Init engine
   useEffect(() => {
@@ -143,6 +151,8 @@ function RacePage() {
   };
 
   const restart = () => {
+    savedRef.current = false;
+    setSaveStatus("idle");
     engineRef.current?.reset();
   };
 
@@ -353,10 +363,23 @@ function RacePage() {
               ))}
             </ol>
             {state.player.bestLap != null && (
-              <div className="text-sm mb-4 opacity-80">
+              <div className="text-sm mb-2 opacity-80">
                 Fastest lap: <span className="font-mono">{formatTime(state.player.bestLap)}</span>
               </div>
             )}
+            <div className={`text-xs mb-4 px-2 py-1.5 rounded ${
+              saveStatus === "saved" ? "bg-emerald-500/20 text-emerald-300" :
+              saveStatus === "saving" ? "bg-amber-500/20 text-amber-300" :
+              saveStatus === "error" ? "bg-red-500/20 text-red-300" :
+              saveStatus === "no-wallet" ? "bg-red-500/20 text-red-300" :
+              "bg-white/5 text-white/50"
+            }`}>
+              {saveStatus === "saved" && `SRL points saved! (+${state.player.coins} coins)`}
+              {saveStatus === "saving" && "Saving to leaderboard..."}
+              {saveStatus === "error" && "Failed to save - check console for details"}
+              {saveStatus === "no-wallet" && "Wallet not connected - coins not saved"}
+              {saveStatus === "idle" && "Waiting..."}
+            </div>
             <div className="flex gap-2">
               <button
                 onClick={restart}
