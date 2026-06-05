@@ -38,16 +38,14 @@ function AdminPage() {
   const [allTimePlayers, setAllTimePlayers] = useState<AllTimePlayer[]>([]);
   const [loading, setLoading] = useState(false);
   const [copied, setCopied] = useState<string | null>(null);
-  const [weekStart, setWeekStart] = useState("");
-
-  useEffect(() => {
+  const [totalSessions, setTotalSessions] = useState<number | null>(null);
+  const [weekStart] = useState(() => {
     const now = new Date();
     const day = now.getDay();
     const diff = now.getDate() - day + (day === 0 ? -6 : 1);
-    const monday = new Date(now.setDate(diff));
-    monday.setHours(0, 0, 0, 0);
-    setWeekStart(monday.toISOString());
-  }, []);
+    const monday = new Date(now.getFullYear(), now.getMonth(), diff, 0, 0, 0, 0);
+    return monday.toISOString();
+  });
 
   const login = () => {
     if (password === ADMIN_PASSWORD) {
@@ -59,16 +57,23 @@ function AdminPage() {
   };
 
   const fetchWeekly = useCallback(async () => {
-    if (!supabase || !weekStart) return;
+    if (!supabase) return;
     setLoading(true);
     try {
+      // Check total sessions in DB
+      const { count } = await supabase
+        .from("game_sessions")
+        .select("*", { count: "exact", head: true });
+      setTotalSessions(count ?? 0);
+
+      // Fetch this week's sessions
       const { data, error } = await supabase
         .from("game_sessions")
-        .select("wallet_address, coins_collected, finish_position")
+        .select("wallet_address, coins_collected, finish_position, created_at")
         .gte("created_at", weekStart);
 
       if (error || !data) {
-        console.error(error);
+        console.error("Weekly query error:", error);
         setLoading(false);
         return;
       }
@@ -201,6 +206,11 @@ function AdminPage() {
           <div className="text-center py-12 opacity-60">Loading...</div>
         ) : tab === "weekly" ? (
           <>
+            {totalSessions !== null && (
+              <div className="bg-white/5 border border-white/10 rounded-lg px-3 py-2 mb-3 text-xs opacity-60">
+                Total game sessions in DB: {totalSessions} | Week filter: since {new Date(weekStart).toLocaleDateString()}
+              </div>
+            )}
             <div className="flex items-center justify-between mb-3">
               <div className="text-sm opacity-60">{weeklyPlayers.length} players this week</div>
               {weeklyPlayers.length > 0 && (
@@ -213,7 +223,12 @@ function AdminPage() {
               )}
             </div>
             {weeklyPlayers.length === 0 ? (
-              <div className="text-center py-12 opacity-60">No races this week yet</div>
+              <div className="text-center py-12">
+                <div className="opacity-60 mb-2">No races this week yet</div>
+                {totalSessions === 0 && (
+                  <div className="text-xs text-amber-400">Game sessions are not being saved. Make sure you connect a wallet before racing on solracingleague.com</div>
+                )}
+              </div>
             ) : (
               <div className="space-y-2">
                 {weeklyPlayers.map((p, i) => (

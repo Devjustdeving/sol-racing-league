@@ -39,17 +39,31 @@ export async function saveGameSession(
   if (!supabase) return null;
 
   try {
-    const { error: playerError } = await supabase.rpc("upsert_player_stats", {
+    // Ensure player exists first (try RPC, fall back to direct upsert)
+    const { error: rpcError } = await supabase.rpc("upsert_player_stats", {
       p_wallet: walletAddress,
       p_coins: coinsCollected,
       p_position: finishPosition,
     });
 
-    if (playerError) {
-      console.error("Failed to upsert player:", playerError);
-      return null;
+    if (rpcError) {
+      console.error("RPC upsert failed, trying direct upsert:", rpcError);
+      const { error: directError } = await supabase
+        .from("players")
+        .upsert({
+          wallet_address: walletAddress,
+          total_coins: coinsCollected,
+          games_played: 1,
+          best_position: finishPosition,
+        }, { onConflict: "wallet_address" });
+
+      if (directError) {
+        console.error("Direct player upsert also failed:", directError);
+        return null;
+      }
     }
 
+    // Now save the game session
     const { data: session, error: sessionError } = await supabase
       .from("game_sessions")
       .insert({
