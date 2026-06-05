@@ -39,44 +39,24 @@ export async function saveGameSession(
   if (!supabase) return null;
 
   try {
-    // Ensure player exists first (try RPC, fall back to direct upsert)
-    const { error: rpcError } = await supabase.rpc("upsert_player_stats", {
+    const { error } = await supabase.rpc("save_race_result", {
       p_wallet: walletAddress,
+      p_track: trackId,
       p_coins: coinsCollected,
       p_position: finishPosition,
+      p_total_cars: totalCars,
+      p_best_lap: bestLapMs,
     });
 
-    if (rpcError) {
-      console.error("RPC upsert failed, trying direct upsert:", rpcError);
-      const { error: directError } = await supabase
-        .from("players")
-        .upsert({
-          wallet_address: walletAddress,
-          total_coins: coinsCollected,
-          games_played: 1,
-          best_position: finishPosition,
-        }, { onConflict: "wallet_address" });
-
-      if (directError) {
-        console.error("Direct player upsert also failed:", directError);
-        return null;
-      }
-    }
-
-    // Now save the game session (plain insert, no .select() to avoid RLS read issues)
-    const { error: sessionError } = await supabase
-      .from("game_sessions")
-      .insert({
-        wallet_address: walletAddress,
-        track_id: trackId,
-        coins_collected: coinsCollected,
-        finish_position: finishPosition,
-        total_cars: totalCars,
-        best_lap_ms: bestLapMs,
+    if (error) {
+      console.error("save_race_result RPC failed:", error);
+      // Fallback: at least save player stats
+      await supabase.rpc("upsert_player_stats", {
+        p_wallet: walletAddress,
+        p_coins: coinsCollected,
+        p_position: finishPosition,
       });
-
-    if (sessionError) {
-      console.error("Failed to save game session:", sessionError);
+      return null;
     }
 
     return { ok: true };
