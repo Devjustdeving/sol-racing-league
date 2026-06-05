@@ -63,8 +63,8 @@ export async function saveGameSession(
       }
     }
 
-    // Now save the game session
-    const { data: session, error: sessionError } = await supabase
+    // Now save the game session (plain insert, no .select() to avoid RLS read issues)
+    const { error: sessionError } = await supabase
       .from("game_sessions")
       .insert({
         wallet_address: walletAddress,
@@ -73,16 +73,13 @@ export async function saveGameSession(
         finish_position: finishPosition,
         total_cars: totalCars,
         best_lap_ms: bestLapMs,
-      })
-      .select()
-      .single();
+      });
 
     if (sessionError) {
       console.error("Failed to save game session:", sessionError);
-      return null;
     }
 
-    return session;
+    return { ok: true };
   } catch (e) {
     console.error("saveGameSession error:", e);
     return null;
