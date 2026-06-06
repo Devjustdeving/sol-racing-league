@@ -38,14 +38,16 @@ export async function saveGameSession(
 ): Promise<{ ok: true } | { ok: false; error: string } | null> {
   if (!supabase) return null;
 
-  const params = {
+  const params: Record<string, string | number> = {
     p_wallet: String(walletAddress),
     p_track: String(trackId),
     p_coins: parseInt(String(coinsCollected), 10) || 0,
     p_position: parseInt(String(finishPosition), 10) || 1,
     p_total_cars: parseInt(String(totalCars), 10) || 6,
-    p_best_lap: bestLapMs != null ? parseInt(String(Math.round(bestLapMs * 1000)), 10) : null,
   };
+  if (bestLapMs != null && isFinite(bestLapMs)) {
+    params.p_best_lap = Math.floor(bestLapMs * 1000);
+  }
 
   try {
     const { error } = await supabase.rpc("save_race_result", params);
