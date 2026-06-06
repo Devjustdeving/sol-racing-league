@@ -39,13 +39,14 @@ export async function saveGameSession(
   if (!supabase) return null;
 
   try {
+    const bestLapInt = bestLapMs != null ? Math.round(bestLapMs * 1000) : null;
     const { error } = await supabase.rpc("save_race_result", {
       p_wallet: walletAddress,
       p_track: trackId,
-      p_coins: coinsCollected,
-      p_position: finishPosition,
-      p_total_cars: totalCars,
-      p_best_lap: bestLapMs,
+      p_coins: Math.round(coinsCollected),
+      p_position: Math.round(finishPosition),
+      p_total_cars: Math.round(totalCars),
+      p_best_lap: bestLapInt,
     });
 
     if (error) {
@@ -53,8 +54,8 @@ export async function saveGameSession(
       // Fallback: at least save player stats
       await supabase.rpc("upsert_player_stats", {
         p_wallet: walletAddress,
-        p_coins: coinsCollected,
-        p_position: finishPosition,
+        p_coins: Math.round(coinsCollected),
+        p_position: Math.round(finishPosition),
       });
       return null;
     }
