@@ -32,7 +32,7 @@ function RacePage() {
   const tiltZeroRef = useRef<number | null>(null);
   const { address } = useWallet();
   const savedRef = useRef(false);
-  const [saveStatus, setSaveStatus] = useState<"idle" | "saving" | "saved" | "error" | "no-wallet">("idle");
+  const [saveStatus, setSaveStatus] = useState<string>("idle");
 
   // Save game session when race finishes
   useEffect(() => {
@@ -53,9 +53,15 @@ function RacePage() {
       state.player.totalCars,
       state.player.bestLap ?? null,
     ).then((result) => {
-      setSaveStatus(result ? "saved" : "error");
-    }).catch(() => {
-      setSaveStatus("error");
+      if (!result) {
+        setSaveStatus("error:null");
+      } else if (result.ok) {
+        setSaveStatus("saved");
+      } else {
+        setSaveStatus("error:" + result.error);
+      }
+    }).catch((e) => {
+      setSaveStatus("error:" + String(e));
     });
   }, [state?.finished]);
 
@@ -370,13 +376,13 @@ function RacePage() {
             <div className={`text-xs mb-4 px-2 py-1.5 rounded ${
               saveStatus === "saved" ? "bg-emerald-500/20 text-emerald-300" :
               saveStatus === "saving" ? "bg-amber-500/20 text-amber-300" :
-              saveStatus === "error" ? "bg-red-500/20 text-red-300" :
+              saveStatus.startsWith("error") ? "bg-red-500/20 text-red-300" :
               saveStatus === "no-wallet" ? "bg-red-500/20 text-red-300" :
               "bg-white/5 text-white/50"
             }`}>
               {saveStatus === "saved" && `SRL points saved! (+${state.player.coins} coins)`}
               {saveStatus === "saving" && "Saving to leaderboard..."}
-              {saveStatus === "error" && "Failed to save - check console for details"}
+              {saveStatus.startsWith("error") && saveStatus}
               {saveStatus === "no-wallet" && "Wallet not connected - coins not saved"}
               {saveStatus === "idle" && "Waiting..."}
             </div>

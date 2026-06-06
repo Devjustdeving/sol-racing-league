@@ -35,35 +35,36 @@ export async function saveGameSession(
   finishPosition: number,
   totalCars: number,
   bestLapMs: number | null,
-) {
+): Promise<{ ok: true } | { ok: false; error: string } | null> {
   if (!supabase) return null;
 
+  const params = {
+    p_wallet: String(walletAddress),
+    p_track: String(trackId),
+    p_coins: parseInt(String(coinsCollected), 10) || 0,
+    p_position: parseInt(String(finishPosition), 10) || 1,
+    p_total_cars: parseInt(String(totalCars), 10) || 6,
+    p_best_lap: bestLapMs != null ? parseInt(String(Math.round(bestLapMs * 1000)), 10) : null,
+  };
+
   try {
-    const bestLapInt = bestLapMs != null ? Math.round(bestLapMs * 1000) : null;
-    const { error } = await supabase.rpc("save_race_result", {
-      p_wallet: walletAddress,
-      p_track: trackId,
-      p_coins: Math.round(coinsCollected),
-      p_position: Math.round(finishPosition),
-      p_total_cars: Math.round(totalCars),
-      p_best_lap: bestLapInt,
-    });
+    const { error } = await supabase.rpc("save_race_result", params);
 
     if (error) {
-      console.error("save_race_result RPC failed:", error);
-      // Fallback: at least save player stats
+      const errMsg = `${error.code}: ${error.message}`;
+      console.error("save_race_result RPC failed:", error, "params:", params);
       await supabase.rpc("upsert_player_stats", {
-        p_wallet: walletAddress,
-        p_coins: Math.round(coinsCollected),
-        p_position: Math.round(finishPosition),
+        p_wallet: params.p_wallet,
+        p_coins: params.p_coins,
+        p_position: params.p_position,
       });
-      return null;
+      return { ok: false, error: errMsg };
     }
 
     return { ok: true };
   } catch (e) {
     console.error("saveGameSession error:", e);
-    return null;
+    return { ok: false, error: String(e) };
   }
 }
 
